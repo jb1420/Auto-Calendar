@@ -6,46 +6,30 @@ import requests
 import json
 import re
 import io
-import os
-from pathlib import Path
+from collections import OrderedDict
 
 app = Flask(__name__)
 
-# JSON 파일 저장 디렉토리
-JSON_DIR = Path('timetable_cache')
-JSON_DIR.mkdir(exist_ok=True)
-MAX_CACHE_FILES = 10
+# 메모리 캐시 (FIFO Queue)
+timetable_cache = OrderedDict()
+MAX_CACHE_SIZE = 10
 
 
-def cleanup_old_json_files():
-    """최대 개수를 초과한 오래된 JSON 파일 삭제 (FIFO Queue)"""
-    files = sorted(
-        JSON_DIR.glob('output_*.json'),
-        key=lambda f: f.stat().st_mtime
-    )
-    while len(files) >= MAX_CACHE_FILES:
-        oldest = files.pop(0)
-        try:
-            oldest.unlink()
-        except Exception:
-            pass
+def cleanup_cache():
+    """최대 크기를 초과한 오래된 항목 삭제 (FIFO)"""
+    while len(timetable_cache) >= MAX_CACHE_SIZE:
+        timetable_cache.popitem(last=False)
 
 
-def save_timetable_json(std_id, data):
-    """시간표 데이터를 JSON 파일로 저장"""
-    cleanup_old_json_files()
-    filename = JSON_DIR / f'output_{std_id[0:2]}{std_id[3:]}.json'
-    with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+def save_timetable_cache(std_id, data):
+    """메모리에 시간표 데이터 저장"""
+    cleanup_cache()
+    timetable_cache[std_id] = data
 
 
-def load_timetable_json(std_id):
-    """저장된 JSON 파일에서 시간표 로드"""
-    filename = JSON_DIR / f'output_{std_id[0:2]}{std_id[3:]}.json'
-    if filename.exists():
-        with open(filename, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return None
+def load_timetable_cache(std_id):
+    """메모리에서 시간표 데이터 로드"""
+    return timetable_cache.get(std_id)
 
 CLASS_TIME = [
     ("08:40", "09:30"),
@@ -92,8 +76,8 @@ def get_timetable():
     if not re.match(r'^\d{2}-\d{3}$', std_id):
         return jsonify({'error': '학번 형식이 올바르지 않습니다. (예: 24-074)'}), 400
 
-    # 캐시된 파일 확인
-    cached = load_timetable_json(std_id)
+    # 메모리 캐시 확인
+    cached = load_timetable_cache(std_id)
     if cached:
         return jsonify(cached)
 
@@ -123,8 +107,8 @@ def get_timetable():
                     'room':    parts[3] if len(parts) > 3 else None,
                 }
 
-    # JSON 파일 저장
-    save_timetable_json(std_id, inner_data)
+    # 메모리 캐시 저장
+    save_timetable_cache(std_id, inner_data)
     return jsonify(inner_data)
 
 
@@ -216,4 +200,4 @@ def generate_ics():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=False, port=5000)
