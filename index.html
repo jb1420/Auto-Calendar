@@ -93,8 +93,18 @@
     /* ── Step 1 ── */
     .step1-inner { max-width: 400px; margin: 0 auto; text-align: center; }
     .step1-inner h2 { font-size: 26px; margin-bottom: 10px; }
-    .step1-inner .subtitle { margin-bottom: 32px; }
+    .step1-inner .subtitle { margin-bottom: 24px; }
     .input-row { display: flex; gap: 10px; margin-bottom: 8px; }
+
+    /* 언어 선택 토글 */
+    .lang-toggle { display: flex; gap: 0; border-radius: 10px; overflow: hidden; border: 1.5px solid #ddd; margin-bottom: 24px; }
+    .lang-toggle button {
+      flex: 1; padding: 9px 0; background: #fff; border: none;
+      font-size: 14px; font-weight: 600; color: #aaa; cursor: pointer;
+      transition: background .2s, color .2s;
+    }
+    .lang-toggle button.active { background: #4f7ef8; color: #fff; }
+    .lang-toggle button:not(:last-child) { border-right: 1.5px solid #ddd; }
     .input-row input { flex: 1; }
     .spinner {
       width: 16px; height: 16px;
@@ -212,9 +222,10 @@
 
       /* Step 1 */
       .step1-inner h2 { font-size: 22px; }
-      .step1-inner .subtitle { margin-bottom: 24px; }
+      .step1-inner .subtitle { margin-bottom: 20px; }
       .input-row { flex-direction: column; gap: 10px; }
       .input-row .btn { width: 100%; }
+      .lang-toggle button { font-size: 13px; padding: 8px 0; }
 
       /* Step 2: 시간표 전체가 한 화면에 들어오도록 */
       .slide-step2 .card {
@@ -325,13 +336,18 @@
       <div class="slide">
         <div class="card">
           <div class="step1-inner">
-            <h2>시간표 캘린더 만들기</h2>
-            <p class="subtitle">학번을 입력하면 시간표를 자동으로 불러옵니다</p>
+            <h2 x-text="t.title"></h2>
+            <p class="subtitle" x-text="t.subtitle"></p>
+            <div class="lang-toggle">
+              <button :class="subjectLang === 'ko' ? 'active' : ''" @click="subjectLang = 'ko'">한국어</button>
+              <button :class="subjectLang === 'en' ? 'active' : ''" @click="subjectLang = 'en'">English</button>
+              <!-- <button :class="subjectLang === 'both' ? 'active' : ''" @click="subjectLang = 'both'">한국어 (English)</button> -->
+            </div>
             <div class="input-row">
-              <input type="text" x-model="stdId" placeholder="예: 24-074" maxlength="6"
+              <input type="text" x-model="stdId" :placeholder="t.inputPlaceholder" maxlength="6"
                 @keyup.enter="fetchTimetable()" />
               <button class="btn btn-primary" @click="fetchTimetable()" :disabled="loading">
-                <span x-show="!loading">찾기</span>
+                <span x-show="!loading" x-text="t.fetchBtn"></span>
                 <span x-show="loading" class="spinner"></span>
               </button>
             </div>
@@ -345,23 +361,23 @@
         <div class="card">
           <div class="tt-header">
             <div>
-              <h2>시간표 편집</h2>
-              <p class="subtitle" style="margin:0">셀을 클릭해 수업을 추가·수정·삭제하세요</p>
+              <h2 x-text="t.step2Title"></h2>
+              <p class="subtitle" style="margin:0" x-text="t.step2Subtitle"></p>
             </div>
           </div>
 
           <div class="tt-grid" id="tt-grid-root">
             <div></div>
-            <div class="tt-head">월</div>
-            <div class="tt-head">화</div>
-            <div class="tt-head">수</div>
-            <div class="tt-head">목</div>
-            <div class="tt-head">금</div>
+            <div class="tt-head" x-text="t.days.value1"></div>
+            <div class="tt-head" x-text="t.days.value2"></div>
+            <div class="tt-head" x-text="t.days.value3"></div>
+            <div class="tt-head" x-text="t.days.value4"></div>
+            <div class="tt-head" x-text="t.days.value5"></div>
           </div>
 
           <div class="step2-footer">
-            <button class="btn btn-secondary" @click="step = 1">← 뒤로</button>
-            <button class="btn btn-primary" @click="step = 3">다음: 내보내기 →</button>
+            <button class="btn btn-secondary" @click="step = 1" x-text="t.back"></button>
+            <button class="btn btn-primary" @click="step = 3" x-text="t.next"></button>
           </div>
         </div>
       </div>
@@ -369,22 +385,22 @@
       <!-- STEP 3 -->
       <div class="slide">
         <div class="card">
-          <h2>ICS 내보내기</h2>
-          <p class="subtitle">캘린더 앱에 가져올 수 있는 ICS 파일을 생성합니다</p>
+          <h2 x-text="t.step3Title"></h2>
+          <p class="subtitle" x-text="t.step3Subtitle"></p>
 
           <details>
-            <summary>학기 설정</summary>
+            <summary x-text="t.semesterSettings"></summary>
             <div class="details-body">
               <div class="date-row">
-                <label>학기 시작</label>
+                <label x-text="t.semesterStart"></label>
                 <input type="date" x-model="config.semesterStart" />
               </div>
               <div class="date-row">
-                <label>학기 종료</label>
+                <label x-text="t.semesterEnd"></label>
                 <input type="date" x-model="config.semesterEnd" />
               </div>
               <div style="margin-top:16px;">
-                <div style="font-size:13px;color:#666;margin-bottom:8px;font-weight:600;">수업 없는 날 (공휴일/시험기간)</div>
+                <div style="font-size:13px;color:#666;margin-bottom:8px;font-weight:600;" x-text="t.noClassLabel"></div>
                 <div class="noclass-list">
                   <template x-for="(d, i) in config.noClassDates" :key="d">
                     <div class="noclass-tag">
@@ -396,7 +412,7 @@
                 <div class="add-date-row">
                   <input type="date" x-model="newNoClassDate" />
                   <button class="btn btn-secondary" style="padding:8px 14px;font-size:13px;"
-                    @click="addNoClassDate()">추가</button>
+                    @click="addNoClassDate()" x-text="t.addDate"></button>
                 </div>
               </div>
             </div>
@@ -404,50 +420,49 @@
 
           <div class="download-wrap">
             <button class="btn btn-primary" @click="downloadICS()" :disabled="loading">
-              <span x-show="!loading">⬇ ICS 파일 다운로드</span>
+              <span x-show="!loading" x-text="t.downloadBtn"></span>
               <span x-show="loading" class="spinner"></span>
             </button>
             <p class="error-msg" x-show="error" x-text="error"></p>
           </div>
 
-          <div class="guide-title">캘린더 앱에 추가하는 방법</div>
+          <div class="guide-title" x-text="t.guideTitle"></div>
 
           <details>
-            <summary>Google Calendar</summary>
+            <summary x-text="t.gcal"></summary>
             <div class="guide-body">
               <ol>
-                <li>Google Calendar 웹 접속</li>
-                <li>왼쪽 하단 <b>다른 캘린더 +</b> 클릭</li>
-                <li><b>파일에서 가져오기</b> 선택</li>
-                <li>다운로드한 .ics 파일 업로드 후 가져오기 클릭</li>
+                <template x-for="step in t.gcalSteps" :key="step">
+                  <li x-html="step"></li>
+                </template>
               </ol>
             </div>
           </details>
 
           <details>
-            <summary>iPhone (Apple Calendar)</summary>
+            <summary x-text="t.iphone"></summary>
             <div class="guide-body">
               <ol>
-                <li>.ics 파일을 AirDrop 또는 이메일로 iPhone에 전송</li>
-                <li>파일 앱에서 .ics 파일 탭</li>
-                <li><b>캘린더에 추가</b> 선택</li>
+                <template x-for="step in t.iphoneSteps" :key="step">
+                  <li x-html="step"></li>
+                </template>
               </ol>
             </div>
           </details>
 
           <details>
-            <summary>Mac (Apple Calendar)</summary>
+            <summary x-text="t.mac"></summary>
             <div class="guide-body">
               <ol>
-                <li>다운로드한 .ics 파일을 더블클릭</li>
-                <li>캘린더 앱이 열리며 가져오기 다이얼로그 표시</li>
-                <li><b>추가</b> 클릭</li>
+                <template x-for="step in t.macSteps" :key="step">
+                  <li x-html="step"></li>
+                </template>
               </ol>
             </div>
           </details>
 
           <div class="step3-footer">
-            <button class="btn btn-secondary" @click="step = 2">← 뒤로</button>
+            <button class="btn btn-secondary" @click="step = 2" x-text="t.back"></button>
           </div>
         </div>
       </div>
@@ -458,27 +473,29 @@
   <!-- 편집 모달 -->
   <div class="modal-bg" x-show="modal.open" x-cloak @click.self="modal.open = false">
     <div class="modal-box" @click.stop>
-      <h3 x-text="`${modal.kyosi}교시 ${dayName(modal.col)} — ${modal.isNew ? '수업 추가' : '수업 편집'}`"></h3>
+      <h3 x-text="subjectLang === 'en'
+        ? `Period ${modal.kyosi} ${dayName(modal.col)} — ${modal.isNew ? 'Add Class' : 'Edit Class'}`
+        : `${modal.kyosi}교시 ${dayName(modal.col)} — ${modal.isNew ? '수업 추가' : '수업 편집'}`"></h3>
       <div class="modal-field">
-        <label>과목명</label>
-        <input type="text" x-model="modal.data.subject" placeholder="예: 알고리즘(Algorithms)" />
+        <label x-text="t.modalSubject"></label>
+        <input type="text" x-model="modal.data.subject" :placeholder="t.modalSubjectPlaceholder" />
       </div>
       <div class="modal-field">
-        <label>분반</label>
-        <input type="text" x-model="modal.data.class" placeholder="예: 1분반" />
+        <label x-text="t.modalClass"></label>
+        <input type="text" x-model="modal.data.class" :placeholder="t.modalClassPlaceholder" />
       </div>
       <div class="modal-field">
-        <label>교수</label>
-        <input type="text" x-model="modal.data.teacher" placeholder="예: 홍길동" />
+        <label x-text="t.modalTeacher"></label>
+        <input type="text" x-model="modal.data.teacher" :placeholder="t.modalTeacherPlaceholder" />
       </div>
       <div class="modal-field">
-        <label>강의실</label>
-        <input type="text" x-model="modal.data.room" placeholder="예: 형3404" />
+        <label x-text="t.modalRoom"></label>
+        <input type="text" x-model="modal.data.room" :placeholder="t.modalRoomPlaceholder" />
       </div>
       <div class="modal-actions">
-        <button class="btn btn-primary" @click="saveModal()">저장</button>
-        <button class="btn btn-danger" x-show="!modal.isNew" @click="deleteModal()">삭제</button>
-        <button class="btn btn-secondary" @click="modal.open = false">취소</button>
+        <button class="btn btn-primary" @click="saveModal()" x-text="t.modalSave"></button>
+        <button class="btn btn-danger" x-show="!modal.isNew" @click="deleteModal()" x-text="t.modalDelete"></button>
+        <button class="btn btn-secondary" @click="modal.open = false" x-text="t.modalCancel"></button>
       </div>
     </div>
   </div>
@@ -488,6 +505,7 @@
       return {
         step: 1,
         stdId: '',
+        subjectLang: 'ko',
         timetable: [],
         loading: false,
         error: '',
@@ -507,10 +525,95 @@
           ]
         },
 
+        I18N: {
+          ko: {
+            title: '시간표 캘린더 만들기',
+            subtitle: '학번을 입력하면 시간표를 자동으로 불러옵니다',
+            inputPlaceholder: '예: 24-074',
+            fetchBtn: '찾기',
+            step2Title: '시간표 편집',
+            step2Subtitle: '셀을 클릭해 수업을 추가·수정·삭제하세요',
+            back: '← 뒤로',
+            next: '다음: 내보내기 →',
+            days: { value1:'월', value2:'화', value3:'수', value4:'목', value5:'금' },
+            step3Title: 'ICS 내보내기',
+            step3Subtitle: '캘린더 앱에 가져올 수 있는 ICS 파일을 생성합니다',
+            semesterSettings: '학기 설정',
+            semesterStart: '학기 시작',
+            semesterEnd: '학기 종료',
+            noClassLabel: '수업 없는 날 (공휴일/시험기간)',
+            addDate: '추가',
+            downloadBtn: '⬇ ICS 파일 다운로드',
+            guideTitle: '캘린더 앱에 추가하는 방법',
+            modalSubject: '과목명',
+            modalClass: '분반',
+            modalTeacher: '교수',
+            modalRoom: '강의실',
+            modalSave: '저장',
+            modalDelete: '삭제',
+            modalCancel: '취소',
+            modalSubjectPlaceholder: '예: 알고리즘(Algorithms)',
+            modalClassPlaceholder: '예: 1분반',
+            modalTeacherPlaceholder: '예: 홍길동',
+            modalRoomPlaceholder: '예: 형3404',
+            toastLoaded: (id) => `✓ ${id} 시간표를 불러왔습니다`,
+            errorEmpty: '학번을 입력해주세요.',
+            errorServer: '서버에 연결할 수 없습니다.',
+            gcal: 'Google Calendar',
+            gcalSteps: ['Google Calendar 웹 접속', '왼쪽 하단 <b>다른 캘린더 +</b> 클릭', '<b>파일에서 가져오기</b> 선택', '다운로드한 .ics 파일 업로드 후 가져오기 클릭'],
+            iphone: 'iPhone (Apple Calendar)',
+            iphoneSteps: ['.ics 파일을 AirDrop 또는 이메일로 iPhone에 전송', '파일 앱에서 .ics 파일 탭', '<b>캘린더에 추가</b> 선택'],
+            mac: 'Mac (Apple Calendar)',
+            macSteps: ['다운로드한 .ics 파일을 더블클릭', '캘린더 앱이 열리며 가져오기 다이얼로그 표시', '<b>추가</b> 클릭'],
+          },
+          en: {
+            title: 'Class Calendar',
+            subtitle: 'Enter your student ID to load your timetable',
+            inputPlaceholder: 'e.g. 24-074',
+            fetchBtn: 'Search',
+            step2Title: 'Edit Timetable',
+            step2Subtitle: 'Click a cell to add, edit, or delete a class',
+            back: '← Back',
+            next: 'Next: Export →',
+            days: { value1:'Mon', value2:'Tue', value3:'Wed', value4:'Thu', value5:'Fri' },
+            step3Title: 'Export ICS',
+            step3Subtitle: 'Generate an ICS file to import into your calendar app',
+            semesterSettings: 'Semester Settings',
+            semesterStart: 'Start Date',
+            semesterEnd: 'End Date',
+            noClassLabel: 'No-Class Dates (holidays / exam periods)',
+            addDate: 'Add',
+            downloadBtn: '⬇ Download ICS File',
+            guideTitle: 'How to import into your calendar app',
+            modalSubject: 'Subject',
+            modalClass: 'Section',
+            modalTeacher: 'Instructor',
+            modalRoom: 'Room',
+            modalSave: 'Save',
+            modalDelete: 'Delete',
+            modalCancel: 'Cancel',
+            modalSubjectPlaceholder: 'e.g. Algorithms',
+            modalClassPlaceholder: 'e.g. Section 1',
+            modalTeacherPlaceholder: 'e.g. John Smith',
+            modalRoomPlaceholder: 'e.g. Hyeong 3404',
+            toastLoaded: (id) => `✓ Loaded timetable for ${id}`,
+            errorEmpty: 'Please enter your student ID.',
+            errorServer: 'Cannot connect to server.',
+            gcal: 'Google Calendar',
+            gcalSteps: ['Go to Google Calendar on the web', 'Click <b>Other calendars +</b> on the bottom left', 'Select <b>Import from file</b>', 'Upload the .ics file and click Import'],
+            iphone: 'iPhone (Apple Calendar)',
+            iphoneSteps: ['Send the .ics file to iPhone via AirDrop or email', 'Tap the .ics file in the Files app', 'Select <b>Add to Calendar</b>'],
+            mac: 'Mac (Apple Calendar)',
+            macSteps: ['Double-click the downloaded .ics file', 'Calendar app opens with an import dialog', 'Click <b>Add</b>'],
+          }
+        },
+
+        get t() { return this.I18N[this.subjectLang] || this.I18N.ko; },
+
         DAY_NAMES: { value1:'월', value2:'화', value3:'수', value4:'목', value5:'금' },
         VALUE_KEYS: ['value1','value2','value3','value4','value5'],
 
-        dayName(col) { return this.DAY_NAMES[col] || ''; },
+        dayName(col) { return (this.t.days || this.DAY_NAMES)[col] || ''; },
 
         showToast(msg) {
           const el = document.getElementById('toast');
@@ -551,18 +654,18 @@
         },
 
         async fetchTimetable() {
-          if (!this.stdId.trim()) { this.error = '학번을 입력해주세요.'; return; }
+          if (!this.stdId.trim()) { this.error = this.t.errorEmpty; return; }
           this.loading = true; this.error = '';
           try {
-            const res  = await fetch(`/api/timetable?stdId=${encodeURIComponent(this.stdId.trim())}`);
+            const res  = await fetch(`/api/timetable?stdId=${encodeURIComponent(this.stdId.trim())}&lang=${this.subjectLang}`);
             const data = await res.json();
             if (!res.ok) { this.error = data.error || '오류가 발생했습니다.'; return; }
             this.timetable = data;
-            this.showToast(`✓ ${this.stdId} 시간표를 불러왔습니다`);
+            this.showToast(this.t.toastLoaded(this.stdId));
             this.step = 2;
             this.$nextTick(() => this.renderGrid());
           } catch (e) {
-            this.error = '서버에 연결할 수 없습니다.';
+            this.error = this.t.errorServer;
           } finally {
             this.loading = false;
           }
@@ -609,7 +712,7 @@
             const res = await fetch('/api/generate-ics', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ stdId: this.stdId, timetable: this.timetable, config: this.config })
+              body: JSON.stringify({ stdId: this.stdId, timetable: this.timetable, config: this.config, subjectLang: this.subjectLang })
             });
             if (!res.ok) {
               const d = await res.json().catch(() => ({}));
@@ -622,7 +725,7 @@
             a.href = url; a.download = `timetable_${this.stdId}.ics`;
             a.click(); URL.revokeObjectURL(url);
           } catch (e) {
-            this.error = '서버에 연결할 수 없습니다.';
+            this.error = this.t.errorServer;
           } finally {
             this.loading = false;
           }

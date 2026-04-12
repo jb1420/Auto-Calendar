@@ -15,6 +15,46 @@ timetable_cache = OrderedDict()
 MAX_CACHE_SIZE = 10
 
 
+def parse_subject(raw: str) -> dict:
+    """과목명에서 국문/영문 분리.
+    '운영체제(Operating Systems)'   → {'ko': '운영체제',      'en': 'Operating Systems'}
+    '미적분학3(EC)(Calculus 3(EC))' → {'ko': '미적분학3(EC)', 'en': 'Calculus 3(EC)'}
+    규칙: 영문자를 포함하는 가장 마지막 최상위 괄호 쌍이 영문 과목명.
+    """
+    s = raw.strip()
+
+    blocks = []
+    depth = 0
+    start = -1
+    for i, ch in enumerate(s):
+        if ch == '(':
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == ')':
+            depth -= 1
+            if depth == 0 and start != -1:
+                blocks.append((start, i))
+
+    for blk_start, blk_end in reversed(blocks):
+        content = s[blk_start + 1:blk_end]
+        if re.search(r'[A-Za-z]', content):
+            return {'ko': s[:blk_start].strip(), 'en': content.strip()}
+
+    return {'ko': s, 'en': s}
+
+
+def get_subject_name(subject: dict | str, lang: str) -> str:
+    """lang 모드에 따라 표시할 과목명 반환. subject가 str이면 그대로 반환."""
+    if isinstance(subject, str):
+        return subject
+    if lang == 'en':
+        return subject['en']
+    elif lang == 'both':
+        return f"{subject['ko']}({subject['en']})"
+    return subject['ko']
+
+
 def cleanup_cache():
     """최대 크기를 초과한 오래된 항목 삭제 (FIFO)"""
     while len(timetable_cache) >= MAX_CACHE_SIZE:
@@ -72,14 +112,15 @@ def index():
 @app.route('/api/timetable')
 def get_timetable():
     std_id = request.args.get('stdId', '').strip()
+    lang   = request.args.get('lang', 'ko')
 
     if not re.match(r'^\d{2}-\d{3}$', std_id):
         return jsonify({'error': '학번 형식이 올바르지 않습니다. (예: 24-074)'}), 400
 
-    # 메모리 캐시 확인
+    # 메모리 캐시 확인 (raw 데이터 캐시 후 lang 적용)
     cached = load_timetable_cache(std_id)
     if cached:
-        return jsonify(cached)
+        return jsonify(_apply_lang(cached, lang))
 
     try:
         resp = requests.get(
@@ -100,16 +141,29 @@ def get_timetable():
         for key, value in row.items():
             if key.startswith('value') and value is not None:
                 parts = value.split('<br>')
+                raw_subject = parts[0] if len(parts) > 0 else None
                 row[key] = {
-                    'subject': parts[0] if len(parts) > 0 else None,
+                    'subject': parse_subject(raw_subject) if raw_subject else None,
                     'class':   parts[1] if len(parts) > 1 else None,
                     'teacher': parts[2] if len(parts) > 2 else None,
                     'room':    parts[3] if len(parts) > 3 else None,
                 }
 
-    # 메모리 캐시 저장
+    # 메모리 캐시에는 subject dict 형태(raw)로 저장
     save_timetable_cache(std_id, inner_data)
-    return jsonify(inner_data)
+    return jsonify(_apply_lang(inner_data, lang))
+
+
+def _apply_lang(timetable: list, lang: str) -> list:
+    """timetable의 subject dict를 lang에 맞게 문자열로 변환한 복사본 반환."""
+    import copy
+    result = copy.deepcopy(timetable)
+    for row in result:
+        for key in DAY_MAP:
+            info = row.get(key)
+            if info and isinstance(info.get('subject'), dict):
+                info['subject'] = get_subject_name(info['subject'], lang)
+    return result
 
 
 @app.route('/api/generate-ics', methods=['POST'])
@@ -118,9 +172,10 @@ def generate_ics():
     if not body:
         return jsonify({'error': '요청 본문이 없습니다.'}), 400
 
-    std_id   = body.get('stdId', 'timetable')
-    timetable = body.get('timetable', [])
-    config   = body.get('config', {})
+    std_id      = body.get('stdId', 'timetable')
+    timetable   = body.get('timetable', [])
+    config      = body.get('config', {})
+    subject_lang = body.get('subjectLang', 'ko')
 
     try:
         semester_start = date.fromisoformat(config.get('semesterStart', '2026-03-03'))
@@ -173,7 +228,7 @@ def generate_ics():
         until   = TZ.localize(datetime(semester_end.year, semester_end.month, semester_end.day, 23, 59))
 
         event = Event()
-        event.add('summary',     info['subject'])
+        event.add('summary',     get_subject_name(info['subject'], subject_lang))
         event.add('dtstart',     dtstart)
         event.add('dtend',       dtend)
         event.add('location',    info.get('room') or '')

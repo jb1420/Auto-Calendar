@@ -7,6 +7,53 @@ import re
 
 import time
 
+# 과목명 표시 모드: 'ko' = 국문, 'en' = 영문, 'both' = 국문(영문)
+SUBJECT_LANG = 'ko'
+
+
+def parse_subject(subject_raw: str) -> dict:
+    """과목명 문자열에서 국문/영문 분리.
+    예: '운영체제(Operating Systems)'      → {'ko': '운영체제',      'en': 'Operating Systems'}
+        '미적분학3(EC)(Calculus 3(EC))'    → {'ko': '미적분학3(EC)', 'en': 'Calculus 3(EC)'}
+    규칙: 영문자를 포함하는 가장 마지막 최상위 괄호 쌍이 영문 과목명.
+    """
+    s = subject_raw.strip()
+
+    # 최상위 괄호 블록들의 (시작, 끝) 인덱스 목록 추출
+    blocks = []
+    depth = 0
+    start = -1
+    for i, ch in enumerate(s):
+        if ch == '(':
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == ')':
+            depth -= 1
+            if depth == 0 and start != -1:
+                blocks.append((start, i))
+
+    # 영문자를 포함하는 가장 마지막 블록을 영문 과목명으로 선택
+    for start, end in reversed(blocks):
+        content = s[start + 1:end]
+        if re.search(r'[A-Za-z]', content):
+            ko = s[:start].strip()
+            en = content.strip()
+            return {'ko': ko, 'en': en}
+
+    # 영문 블록이 없으면 원본을 그대로 사용
+    return {'ko': s, 'en': s}
+
+
+def get_subject_name(subject_parsed: dict) -> str:
+    """SUBJECT_LANG 모드에 따라 표시할 과목명 반환."""
+    if SUBJECT_LANG == 'en':
+        return subject_parsed['en']
+    elif SUBJECT_LANG == 'both':
+        return f"{subject_parsed['ko']}({subject_parsed['en']})"
+    else:  # 'ko' (기본값)
+        return subject_parsed['ko']
+
 
 def get_data(stdID:str):
     # stdID 정규식 체크(OO-OOO 형식)
@@ -23,8 +70,10 @@ def get_data(stdID:str):
         for key, value in row.items():
             if key.startswith('value') and value is not None:
                 parts = value.split('<br>')
+                raw_subject = parts[0] if len(parts) > 0 else None
+                subject_parsed = parse_subject(raw_subject) if raw_subject else None
                 row[key] = {
-                    'subject': parts[0] if len(parts) > 0 else None,
+                    'subject': subject_parsed,
                     'class': parts[1] if len(parts) > 1 else None,
                     'teacher': parts[2] if len(parts) > 2 else None,
                     'room': parts[3] if len(parts) > 3 else None,
@@ -100,12 +149,14 @@ def upload_data(stdID: str):
     filename = f'output_{stdID[0:2]+stdID[3:]}.json'
     timetable = json.load(open(filename, encoding='utf-8'))
 
-    # 구버전 파일(value가 list) 감지
+    # 구버전 파일(value가 list 또는 subject가 str) 감지
     for row in timetable:
         for key in DAY_MAP:
             val = row.get(key)
             if isinstance(val, list):
                 raise ValueError(f"{filename}이 구버전 형식입니다. get_data()를 다시 실행하세요.")
+            if isinstance(val, dict) and isinstance(val.get('subject'), str):
+                raise ValueError(f"{filename}이 구버전 형식입니다(subject가 분리되지 않음). get_data()를 다시 실행하세요.")
 
 
     # (value_key, kyosi_1based) -> info 로 먼저 수집
@@ -123,7 +174,7 @@ def upload_data(stdID: str):
     for (value_key, kyosi), info in sorted(slot_map.items(), key=lambda x: (x[0][0], x[0][1])):
         if kyosi not in BLOCK_STARTS:
             prev = slot_map.get((value_key, kyosi - 1))
-            if prev is not None and prev['subject'] == info['subject']:
+            if prev is not None and prev['subject'] == info['subject']:  # dict 비교 (ko/en 모두 동일)
                 # 이전 교시와 같은 수업 → 이전 항목의 end_kyosi를 연장
                 # merged에서 이 (value_key, kyosi-1)의 시작 교시를 찾아서 연장
                 for start_k in range(kyosi - 1, 0, -1):
@@ -156,8 +207,10 @@ def upload_data(stdID: str):
         dtend   = tz.localize(datetime(first_day.year, first_day.month, first_day.day, eh, em))
         until   = tz.localize(datetime(SEMESTER_END.year, SEMESTER_END.month, SEMESTER_END.day, 23, 59))
 
+        subject_name = get_subject_name(info['subject'])
+
         event = Event()
-        event.add('summary', info['subject'])
+        event.add('summary', subject_name)
         event.add('dtstart', dtstart)
         event.add('dtend', dtend)
         event.add('location', info['room'] or '')
@@ -173,7 +226,7 @@ def upload_data(stdID: str):
             event.add('exdate', exdates)
 
         cal.add_component(event)
-        events_data.append(info['subject'])
+        events_data.append(subject_name)
 
     with open(f'events_{stdID}.ics', 'wb') as f:
         f.write(cal.to_ical())
