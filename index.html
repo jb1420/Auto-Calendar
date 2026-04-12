@@ -182,6 +182,117 @@
     .download-wrap .btn { width: 100%; padding: 16px; font-size: 16px; }
     .step3-footer { margin-top: 8px; }
     .guide-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; color: #333; }
+
+    /* ── 모바일 반응형 ── */
+    @media (max-width: 640px) {
+      body { -webkit-tap-highlight-color: transparent; }
+
+      /* 스텝 인디케이터: 라벨 숨기고 라인 축소 */
+      .step-bar { padding: 20px 0 14px; }
+      .step-circle { width: 28px; height: 28px; font-size: 13px; }
+      .step-label { display: none; }
+      .step-line { width: 40px; margin-bottom: 0; }
+
+      /* 슬라이드 컨테이너 */
+      .slides-wrapper { padding: 0 10px 24px; }
+      .slide { padding: 0 4px; }
+
+      /* 카드 */
+      .card { padding: 22px 18px; border-radius: 14px; }
+
+      h2 { font-size: 19px; }
+      .subtitle { font-size: 13px; margin-bottom: 20px; }
+
+      /* 입력/버튼 */
+      input[type="text"], input[type="date"] {
+        padding: 11px 14px;
+        font-size: 16px; /* iOS 자동 확대 방지 */
+      }
+      .btn { padding: 11px 18px; font-size: 14px; }
+
+      /* Step 1 */
+      .step1-inner h2 { font-size: 22px; }
+      .step1-inner .subtitle { margin-bottom: 24px; }
+      .input-row { flex-direction: column; gap: 10px; }
+      .input-row .btn { width: 100%; }
+
+      /* Step 2: 시간표 전체가 한 화면에 들어오도록 */
+      .slide-step2 .card {
+        padding: 14px 10px;
+      }
+      .slide-step2 .tt-header { margin-bottom: 8px; }
+      .slide-step2 .tt-header h2 { font-size: 16px; margin-bottom: 2px; }
+      .slide-step2 .tt-header .subtitle { display: none; }
+
+      .tt-grid {
+        grid-template-columns: 26px repeat(5, 1fr);
+        gap: 2px;
+        font-size: 10px;
+        /* 가용 높이: 뷰포트 - (스텝바 + 카드 헤더 + 푸터 여유) */
+        grid-auto-rows: minmax(0, 1fr);
+        height: calc(100svh - 200px);
+        min-height: 320px;
+      }
+      .tt-head { padding: 2px 0; font-size: 11px; }
+      .tt-kyosi { font-size: 9px; padding: 0; line-height: 1.1; }
+      .tt-cell {
+        min-height: 0;
+        padding: 2px 2px;
+        border-radius: 5px;
+      }
+      .tt-cell.has-class, .tt-cell.empty { border-width: 1px; }
+      .cell-subject {
+        font-size: 10px;
+        line-height: 1.15;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+      }
+      .cell-room { font-size: 9px; margin-top: 1px; }
+
+      .step2-footer { margin-top: 10px; gap: 8px; }
+      .step2-footer .btn { flex: 1; padding: 10px 8px; font-size: 13px; }
+
+      /* 모달: 화면 하단 시트 스타일 */
+      .modal-bg { align-items: flex-end; }
+      .modal-box {
+        width: 100%;
+        max-width: 100%;
+        border-radius: 18px 18px 0 0;
+        padding: 22px 20px calc(20px + env(safe-area-inset-bottom));
+      }
+      .modal-box h3 { font-size: 16px; margin-bottom: 14px; }
+      .modal-actions { flex-wrap: wrap; }
+      .modal-actions .btn { flex: 1 1 calc(50% - 4px); padding: 11px; }
+
+      /* Step 3 */
+      details summary { padding: 11px 14px; font-size: 13px; }
+      .details-body { padding: 14px; }
+      .date-row { flex-direction: column; align-items: stretch; gap: 6px; }
+      .date-row label { min-width: 0; }
+      .download-wrap .btn { padding: 14px; font-size: 15px; }
+      .guide-body li { font-size: 12px; }
+      .step3-footer .btn { width: 100%; }
+
+      /* 토스트 */
+      .toast {
+        bottom: 20px;
+        font-size: 13px;
+        padding: 10px 18px;
+        max-width: calc(100% - 32px);
+        white-space: normal;
+        text-align: center;
+      }
+    }
+
+    /* 아주 작은 화면 */
+    @media (max-width: 380px) {
+      .step-line { width: 28px; }
+      .card { padding: 18px 14px; }
+      .tt-grid { grid-template-columns: 28px repeat(5, 1fr); }
+      .cell-subject { font-size: 10px; }
+    }
   </style>
 </head>
 <body x-data="app()">
@@ -230,7 +341,7 @@
       </div>
 
       <!-- STEP 2 -->
-      <div class="slide">
+      <div class="slide slide-step2">
         <div class="card">
           <div class="tt-header">
             <div>
