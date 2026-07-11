@@ -4,307 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>시간표 캘린더</title>
+  <link rel="stylesheet" href="style.css" />
+  <script defer src="app.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #f5f6fa;
-      color: #222;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    /* ── 스텝 인디케이터 ── */
-    .step-bar {
-      display: flex;
-      align-items: center;
-      padding: 28px 0 20px;
-      user-select: none;
-    }
-    .step-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-    }
-    .step-circle {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      border: 2px solid #ccc;
-      background: #fff;
-      color: #aaa;
-      font-size: 14px;
-      font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      transition: all .3s;
-    }
-    .step-circle.active { border-color: #4f7ef8; background: #4f7ef8; color: #fff; }
-    .step-label { font-size: 12px; color: #aaa; white-space: nowrap; transition: color .3s; }
-    .step-label.active { color: #4f7ef8; }
-    .step-line {
-      width: 60px; height: 2px;
-      background: #ddd;
-      margin: 0 4px;
-      margin-bottom: 20px;
-      transition: background .3s;
-    }
-    .step-line.done { background: #4f7ef8; }
-
-    /* ── 슬라이드 컨테이너 ── */
-    .slides-wrapper { width: 100%; max-width: 900px; overflow: hidden; padding: 0 16px 40px; }
-    .slides-inner { display: flex; width: 300%; transition: transform .45s cubic-bezier(.4,0,.2,1); }
-    .slide { width: calc(100% / 3); padding: 0 8px; }
-
-    /* ── 카드 ── */
-    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.08); padding: 36px 32px; }
-
-    h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-    .subtitle { color: #888; font-size: 14px; margin-bottom: 28px; }
-
-    /* ── 입력/버튼 ── */
-    input[type="text"], input[type="date"] {
-      width: 100%; padding: 12px 16px;
-      border: 1.5px solid #ddd; border-radius: 10px;
-      font-size: 16px; outline: none;
-      transition: border-color .2s;
-    }
-    input[type="text"]:focus, input[type="date"]:focus { border-color: #4f7ef8; }
-
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      padding: 12px 24px; border-radius: 10px; border: none;
-      font-size: 15px; font-weight: 600; cursor: pointer;
-      transition: opacity .2s, background .2s;
-    }
-    .btn:disabled { opacity: .5; cursor: not-allowed; }
-    .btn-primary { background: #4f7ef8; color: #fff; }
-    .btn-primary:hover:not(:disabled) { background: #3a68e0; }
-    .btn-secondary { background: #f0f0f0; color: #444; }
-    .btn-secondary:hover:not(:disabled) { background: #e0e0e0; }
-    .btn-danger { background: #ff4d4f; color: #fff; }
-    .btn-danger:hover:not(:disabled) { background: #e03f41; }
-
-    .error-msg { color: #e03f41; font-size: 14px; margin-top: 10px; }
-
-    /* ── Step 1 ── */
-    .step1-inner { max-width: 400px; margin: 0 auto; text-align: center; }
-    .step1-inner h2 { font-size: 26px; margin-bottom: 10px; }
-    .step1-inner .subtitle { margin-bottom: 24px; }
-    .input-row { display: flex; gap: 10px; margin-bottom: 8px; }
-
-    /* 언어 선택 토글 */
-    .lang-toggle { display: flex; gap: 0; border-radius: 10px; overflow: hidden; border: 1.5px solid #ddd; margin-bottom: 24px; }
-    .lang-toggle button {
-      flex: 1; padding: 9px 0; background: #fff; border: none;
-      font-size: 14px; font-weight: 600; color: #aaa; cursor: pointer;
-      transition: background .2s, color .2s;
-    }
-    .lang-toggle button.active { background: #4f7ef8; color: #fff; }
-    .lang-toggle button:not(:last-child) { border-right: 1.5px solid #ddd; }
-    .input-row input { flex: 1; }
-    .spinner {
-      width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
-      border-radius: 50%; animation: spin .7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Toast ── */
-    .toast {
-      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px);
-      background: #2d4fd4; color: #fff;
-      padding: 12px 24px; border-radius: 10px;
-      font-size: 14px; font-weight: 600;
-      box-shadow: 0 4px 16px rgba(0,0,0,.2);
-      opacity: 0; pointer-events: none;
-      transition: opacity .3s, transform .3s;
-      white-space: nowrap; z-index: 200;
-    }
-    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-    /* ── Step 2: 시간표 그리드 ── */
-    .tt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .tt-grid { display: grid; grid-template-columns: 52px repeat(5, 1fr); gap: 3px; font-size: 12px; }
-    .tt-head { text-align: center; padding: 6px 0; font-weight: 700; color: #555; }
-    .tt-kyosi {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 4px 0; color: #aaa; font-size: 11px; line-height: 1.4;
-    }
-    .tt-cell {
-      min-height: 54px; border-radius: 8px; padding: 6px; cursor: pointer;
-      transition: background .15s;
-      display: flex; flex-direction: column; justify-content: center;
-    }
-    .tt-cell.has-class { background: #eef2ff; border: 1.5px solid #c7d4fc; }
-    .tt-cell.has-class:hover { background: #dce5fd; }
-    .tt-cell.empty { background: #fafafa; border: 1.5px dashed #e0e0e0; align-items: center; color: #ccc; }
-    .tt-cell.empty:hover { background: #f0f0f0; border-color: #bbb; color: #999; }
-    .cell-subject { font-weight: 700; color: #2d4fd4; line-height: 1.3; word-break: keep-all; }
-    .cell-room { color: #888; margin-top: 2px; }
-    .step2-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
-
-    /* ── 모달 ── */
-    [x-cloak] { display: none !important; }
-    .modal-bg {
-      position: fixed; inset: 0; background: rgba(0,0,0,.4);
-      display: flex; align-items: center; justify-content: center; z-index: 100;
-    }
-    .modal-box {
-      background: #fff; border-radius: 16px; padding: 28px 28px 24px;
-      width: 340px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,.18);
-    }
-    .modal-box h3 { font-size: 17px; font-weight: 700; margin-bottom: 18px; }
-    .modal-field { margin-bottom: 12px; }
-    .modal-field label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
-    .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
-    .modal-actions .btn { flex: 1; padding: 10px; font-size: 14px; }
-
-    /* ── Step 3 ── */
-    details { border: 1.5px solid #eee; border-radius: 10px; margin-bottom: 16px; }
-    details summary {
-      padding: 12px 16px; cursor: pointer; font-weight: 600; font-size: 14px; color: #555;
-      list-style: none; display: flex; justify-content: space-between; align-items: center;
-    }
-    details summary::-webkit-details-marker { display: none; }
-    details summary::after { content: '▾'; font-size: 12px; color: #aaa; }
-    details[open] summary::after { content: '▴'; }
-    .details-body { padding: 16px; border-top: 1px solid #eee; }
-    .date-row { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
-    .date-row label { font-size: 13px; color: #666; min-width: 60px; }
-    .date-row input { flex: 1; padding: 8px 12px; font-size: 14px; }
-    .noclass-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-    .noclass-tag {
-      display: flex; align-items: center; gap: 4px;
-      background: #f0f0f0; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: #555;
-    }
-    .noclass-tag button { background: none; border: none; cursor: pointer; color: #aaa; font-size: 14px; line-height: 1; padding: 0; }
-    .noclass-tag button:hover { color: #e03f41; }
-    .add-date-row { display: flex; gap: 8px; }
-    .add-date-row input { flex: 1; padding: 8px 12px; font-size: 14px; }
-    .guide-body { padding: 0 16px 14px; }
-    .guide-body ol { padding-left: 18px; }
-    .guide-body li { font-size: 13px; color: #555; line-height: 1.8; }
-    .download-wrap { margin-bottom: 24px; }
-    .download-wrap .btn { width: 100%; padding: 16px; font-size: 16px; }
-    .step3-footer { margin-top: 8px; }
-    .guide-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; color: #333; }
-
-    /* ── 모바일 반응형 ── */
-    @media (max-width: 640px) {
-      body { -webkit-tap-highlight-color: transparent; }
-
-      /* 스텝 인디케이터: 라벨 숨기고 라인 축소 */
-      .step-bar { padding: 20px 0 14px; }
-      .step-circle { width: 28px; height: 28px; font-size: 13px; }
-      .step-label { display: none; }
-      .step-line { width: 40px; margin-bottom: 0; }
-
-      /* 슬라이드 컨테이너 */
-      .slides-wrapper { padding: 0 10px 24px; }
-      .slide { padding: 0 4px; }
-
-      /* 카드 */
-      .card { padding: 22px 18px; border-radius: 14px; }
-
-      h2 { font-size: 19px; }
-      .subtitle { font-size: 13px; margin-bottom: 20px; }
-
-      /* 입력/버튼 */
-      input[type="text"], input[type="date"] {
-        padding: 11px 14px;
-        font-size: 16px; /* iOS 자동 확대 방지 */
-      }
-      .btn { padding: 11px 18px; font-size: 14px; }
-
-      /* Step 1 */
-      .step1-inner h2 { font-size: 22px; }
-      .step1-inner .subtitle { margin-bottom: 20px; }
-      .input-row { flex-direction: column; gap: 10px; }
-      .input-row .btn { width: 100%; }
-      .lang-toggle button { font-size: 13px; padding: 8px 0; }
-
-      /* Step 2: 시간표 전체가 한 화면에 들어오도록 */
-      .slide-step2 .card {
-        padding: 14px 10px;
-      }
-      .slide-step2 .tt-header { margin-bottom: 8px; }
-      .slide-step2 .tt-header h2 { font-size: 16px; margin-bottom: 2px; }
-      .slide-step2 .tt-header .subtitle { display: none; }
-
-      .tt-grid {
-        grid-template-columns: 26px repeat(5, 1fr);
-        gap: 2px;
-        font-size: 10px;
-        /* 가용 높이: 뷰포트 - (스텝바 + 카드 헤더 + 푸터 여유) */
-        grid-auto-rows: minmax(0, 1fr);
-        height: calc(100svh - 200px);
-        min-height: 320px;
-      }
-      .tt-head { padding: 2px 0; font-size: 11px; }
-      .tt-kyosi { font-size: 9px; padding: 0; line-height: 1.1; }
-      .tt-cell {
-        min-height: 0;
-        padding: 2px 2px;
-        border-radius: 5px;
-      }
-      .tt-cell.has-class, .tt-cell.empty { border-width: 1px; }
-      .cell-subject {
-        font-size: 10px;
-        line-height: 1.15;
-        overflow: hidden;
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-      }
-      .cell-room { font-size: 9px; margin-top: 1px; }
-
-      .step2-footer { margin-top: 10px; gap: 8px; }
-      .step2-footer .btn { flex: 1; padding: 10px 8px; font-size: 13px; }
-
-      /* 모달: 화면 하단 시트 스타일 */
-      .modal-bg { align-items: flex-end; }
-      .modal-box {
-        width: 100%;
-        max-width: 100%;
-        border-radius: 18px 18px 0 0;
-        padding: 22px 20px calc(20px + env(safe-area-inset-bottom));
-      }
-      .modal-box h3 { font-size: 16px; margin-bottom: 14px; }
-      .modal-actions { flex-wrap: wrap; }
-      .modal-actions .btn { flex: 1 1 calc(50% - 4px); padding: 11px; }
-
-      /* Step 3 */
-      details summary { padding: 11px 14px; font-size: 13px; }
-      .details-body { padding: 14px; }
-      .date-row { flex-direction: column; align-items: stretch; gap: 6px; }
-      .date-row label { min-width: 0; }
-      .download-wrap .btn { padding: 14px; font-size: 15px; }
-      .guide-body li { font-size: 12px; }
-      .step3-footer .btn { width: 100%; }
-
-      /* 토스트 */
-      .toast {
-        bottom: 20px;
-        font-size: 13px;
-        padding: 10px 18px;
-        max-width: calc(100% - 32px);
-        white-space: normal;
-        text-align: center;
-      }
-    }
-
-    /* 아주 작은 화면 */
-    @media (max-width: 380px) {
-      .step-line { width: 28px; }
-      .card { padding: 18px 14px; }
-      .tt-grid { grid-template-columns: 28px repeat(5, 1fr); }
-      .cell-subject { font-size: 10px; }
-    }
-  </style>
 </head>
 <body x-data="app()">
   <!-- 토스트 -->
@@ -391,29 +93,35 @@
           <details>
             <summary x-text="t.semesterSettings"></summary>
             <div class="details-body">
-              <div class="date-row">
-                <label x-text="t.semesterStart"></label>
-                <input type="date" x-model="config.semesterStart" />
+              <p class="cal-hint" x-text="t.calHintNoClass"></p>
+
+              <div class="cal-legend">
+                <span class="cal-legend-item"><i class="lg lg-range"></i><span x-text="t.legendSemester"></span></span>
+                <span class="cal-legend-item"><i class="lg lg-noclass"></i><span x-text="t.legendNoClass"></span></span>
               </div>
-              <div class="date-row">
-                <label x-text="t.semesterEnd"></label>
-                <input type="date" x-model="config.semesterEnd" />
-              </div>
-              <div style="margin-top:16px;">
-                <div style="font-size:13px;color:#666;margin-bottom:8px;font-weight:600;" x-text="t.noClassLabel"></div>
-                <div class="noclass-list">
-                  <template x-for="(d, i) in config.noClassDates" :key="d">
-                    <div class="noclass-tag">
-                      <span x-text="d"></span>
-                      <button @click="config.noClassDates.splice(i, 1)">×</button>
+
+              <div class="cal-wrap">
+                <template x-for="m in calendarMonths" :key="m.key">
+                  <div class="cal-month">
+                    <div class="cal-month-title" x-text="m.label"></div>
+                    <div class="cal-grid">
+                      <template x-for="(wd, wi) in weekdayHeaders" :key="wi">
+                        <div class="cal-dow" :class="wi === 0 ? 'sun' : (wi === 6 ? 'sat' : '')" x-text="wd"></div>
+                      </template>
+                      <template x-for="(day, di) in m.days" :key="m.key + '-' + di">
+                        <div class="cal-day" :class="dayClass(day)"
+                          @click="day && onDayClick(day)">
+                          <span x-show="day" x-text="day ? day.n : ''"></span>
+                        </div>
+                      </template>
                     </div>
-                  </template>
-                </div>
-                <div class="add-date-row">
-                  <input type="date" x-model="newNoClassDate" />
-                  <button class="btn btn-secondary" style="padding:8px 14px;font-size:13px;"
-                    @click="addNoClassDate()" x-text="t.addDate"></button>
-                </div>
+                  </div>
+                </template>
+              </div>
+
+              <div class="cal-summary" x-show="config.semesterStart && config.semesterEnd">
+                <span x-text="`${t.summaryLabel}: ${config.semesterStart} ~ ${config.semesterEnd}`"></span>
+                <span x-text="` · ${t.legendNoClass} ${config.noClassDates.length}${t.noClassUnit}`"></span>
               </div>
             </div>
           </details>
@@ -444,6 +152,17 @@
             <div class="guide-body">
               <ol>
                 <template x-for="step in t.iphoneSteps" :key="step">
+                  <li x-html="step"></li>
+                </template>
+              </ol>
+            </div>
+          </details>
+
+          <details>
+            <summary x-text="t.android"></summary>
+            <div class="guide-body">
+              <ol>
+                <template x-for="step in t.androidSteps" :key="step">
                   <li x-html="step"></li>
                 </template>
               </ol>
@@ -500,238 +219,5 @@
     </div>
   </div>
 
-  <script>
-    function app() {
-      return {
-        step: 1,
-        stdId: '',
-        subjectLang: 'ko',
-        timetable: [],
-        loading: false,
-        error: '',
-        newNoClassDate: '',
-        modal: {
-          open: false, isNew: false,
-          kyosi: null, col: null,
-          data: { subject: '', class: '', teacher: '', room: '' }
-        },
-        config: {
-          semesterStart: '2026-03-03',
-          semesterEnd:   '2026-06-20',
-          noClassDates: [
-            '2026-03-02','2026-05-05','2026-05-25','2026-06-01','2026-06-06',
-            '2026-04-14','2026-04-15','2026-04-16','2026-04-17',
-            '2026-06-15','2026-06-16','2026-06-17','2026-06-18','2026-06-19'
-          ]
-        },
-
-        I18N: {
-          ko: {
-            title: '시간표 캘린더 만들기',
-            subtitle: '학번을 입력하면 시간표를 자동으로 불러옵니다',
-            inputPlaceholder: '예: 24-074',
-            fetchBtn: '찾기',
-            step2Title: '시간표 편집',
-            step2Subtitle: '셀을 클릭해 수업을 추가·수정·삭제하세요',
-            back: '← 뒤로',
-            next: '다음: 내보내기 →',
-            days: { value1:'월', value2:'화', value3:'수', value4:'목', value5:'금' },
-            step3Title: 'ICS 내보내기',
-            step3Subtitle: '캘린더 앱에 가져올 수 있는 ICS 파일을 생성합니다',
-            semesterSettings: '학기 설정',
-            semesterStart: '학기 시작',
-            semesterEnd: '학기 종료',
-            noClassLabel: '수업 없는 날 (공휴일/시험기간)',
-            addDate: '추가',
-            downloadBtn: '⬇ ICS 파일 다운로드',
-            guideTitle: '캘린더 앱에 추가하는 방법',
-            modalSubject: '과목명',
-            modalClass: '분반',
-            modalTeacher: '교수',
-            modalRoom: '강의실',
-            modalSave: '저장',
-            modalDelete: '삭제',
-            modalCancel: '취소',
-            modalSubjectPlaceholder: '예: 알고리즘(Algorithms)',
-            modalClassPlaceholder: '예: 1분반',
-            modalTeacherPlaceholder: '예: 홍길동',
-            modalRoomPlaceholder: '예: 형3404',
-            toastLoaded: (id) => `✓ ${id} 시간표를 불러왔습니다`,
-            errorEmpty: '학번을 입력해주세요.',
-            errorServer: '서버에 연결할 수 없습니다.',
-            gcal: 'Google Calendar',
-            gcalSteps: ['Google Calendar 웹 접속', '왼쪽 하단 <b>다른 캘린더 +</b> 클릭', '<b>파일에서 가져오기</b> 선택', '다운로드한 .ics 파일 업로드 후 가져오기 클릭'],
-            iphone: 'iPhone (Apple Calendar)',
-            iphoneSteps: ['.ics 파일을 AirDrop 또는 이메일로 iPhone에 전송', '파일 앱에서 .ics 파일 탭', '<b>캘린더에 추가</b> 선택'],
-            mac: 'Mac (Apple Calendar)',
-            macSteps: ['다운로드한 .ics 파일을 더블클릭', '캘린더 앱이 열리며 가져오기 다이얼로그 표시', '<b>추가</b> 클릭'],
-          },
-          en: {
-            title: 'Class Calendar',
-            subtitle: 'Enter your student ID to load your timetable',
-            inputPlaceholder: 'e.g. 24-074',
-            fetchBtn: 'Search',
-            step2Title: 'Edit Timetable',
-            step2Subtitle: 'Click a cell to add, edit, or delete a class',
-            back: '← Back',
-            next: 'Next: Export →',
-            days: { value1:'Mon', value2:'Tue', value3:'Wed', value4:'Thu', value5:'Fri' },
-            step3Title: 'Export ICS',
-            step3Subtitle: 'Generate an ICS file to import into your calendar app',
-            semesterSettings: 'Semester Settings',
-            semesterStart: 'Start Date',
-            semesterEnd: 'End Date',
-            noClassLabel: 'No-Class Dates (holidays / exam periods)',
-            addDate: 'Add',
-            downloadBtn: '⬇ Download ICS File',
-            guideTitle: 'How to import into your calendar app',
-            modalSubject: 'Subject',
-            modalClass: 'Section',
-            modalTeacher: 'Instructor',
-            modalRoom: 'Room',
-            modalSave: 'Save',
-            modalDelete: 'Delete',
-            modalCancel: 'Cancel',
-            modalSubjectPlaceholder: 'e.g. Algorithms',
-            modalClassPlaceholder: 'e.g. Section 1',
-            modalTeacherPlaceholder: 'e.g. John Smith',
-            modalRoomPlaceholder: 'e.g. Hyeong 3404',
-            toastLoaded: (id) => `✓ Loaded timetable for ${id}`,
-            errorEmpty: 'Please enter your student ID.',
-            errorServer: 'Cannot connect to server.',
-            gcal: 'Google Calendar',
-            gcalSteps: ['Go to Google Calendar on the web', 'Click <b>Other calendars +</b> on the bottom left', 'Select <b>Import from file</b>', 'Upload the .ics file and click Import'],
-            iphone: 'iPhone (Apple Calendar)',
-            iphoneSteps: ['Send the .ics file to iPhone via AirDrop or email', 'Tap the .ics file in the Files app', 'Select <b>Add to Calendar</b>'],
-            mac: 'Mac (Apple Calendar)',
-            macSteps: ['Double-click the downloaded .ics file', 'Calendar app opens with an import dialog', 'Click <b>Add</b>'],
-          }
-        },
-
-        get t() { return this.I18N[this.subjectLang] || this.I18N.ko; },
-
-        DAY_NAMES: { value1:'월', value2:'화', value3:'수', value4:'목', value5:'금' },
-        VALUE_KEYS: ['value1','value2','value3','value4','value5'],
-
-        dayName(col) { return (this.t.days || this.DAY_NAMES)[col] || ''; },
-
-        showToast(msg) {
-          const el = document.getElementById('toast');
-          el.textContent = msg;
-          el.classList.add('show');
-          setTimeout(() => el.classList.remove('show'), 2500);
-        },
-
-        renderGrid() {
-          const root = document.getElementById('tt-grid-root');
-          // 헤더 6개(빈칸+월~금)만 남기고 이전 행 제거
-          while (root.children.length > 6) root.removeChild(root.lastChild);
-
-          const self = this;
-          this.timetable.forEach(row => {
-            // 교시 셀
-            const kyosiEl = document.createElement('div');
-            kyosiEl.className = 'tt-kyosi';
-            kyosiEl.innerHTML = `<span>${row.kyosi}</span><span>교시</span>`;
-            root.appendChild(kyosiEl);
-
-            // 요일 셀 5개
-            this.VALUE_KEYS.forEach(col => {
-              const info = row[col];
-              const cell = document.createElement('div');
-              cell.className = 'tt-cell ' + (info ? 'has-class' : 'empty');
-              if (info) {
-                const subject = info.subject || '(무제)';
-                const room = info.room ? `<span class="cell-room">${info.room}</span>` : '';
-                cell.innerHTML = `<div class="cell-subject">${subject}</div>${room}`;
-              } else {
-                cell.innerHTML = '<span>+</span>';
-              }
-              cell.addEventListener('click', () => self.openModal(row.kyosi, col));
-              root.appendChild(cell);
-            });
-          });
-        },
-
-        async fetchTimetable() {
-          if (!this.stdId.trim()) { this.error = this.t.errorEmpty; return; }
-          this.loading = true; this.error = '';
-          try {
-            const res  = await fetch(`/api/timetable?stdId=${encodeURIComponent(this.stdId.trim())}&lang=${this.subjectLang}`);
-            const data = await res.json();
-            if (!res.ok) { this.error = data.error || '오류가 발생했습니다.'; return; }
-            this.timetable = data;
-            this.showToast(this.t.toastLoaded(this.stdId));
-            this.step = 2;
-            this.$nextTick(() => this.renderGrid());
-          } catch (e) {
-            this.error = this.t.errorServer;
-          } finally {
-            this.loading = false;
-          }
-        },
-
-        openModal(kyosi, col) {
-          const row  = this.timetable.find(r => r.kyosi === kyosi);
-          const info = row ? row[col] : null;
-          this.modal = {
-            open: true,
-            isNew: !info,
-            kyosi, col,
-            data: info ? { ...info } : { subject: '', class: '', teacher: '', room: '' }
-          };
-        },
-
-        saveModal() {
-          if (!this.modal.data.subject.trim()) return;
-          const row = this.timetable.find(r => r.kyosi === this.modal.kyosi);
-          if (row) row[this.modal.col] = { ...this.modal.data };
-          this.modal.open = false;
-          this.$nextTick(() => this.renderGrid());
-        },
-
-        deleteModal() {
-          const row = this.timetable.find(r => r.kyosi === this.modal.kyosi);
-          if (row) row[this.modal.col] = null;
-          this.modal.open = false;
-          this.$nextTick(() => this.renderGrid());
-        },
-
-        addNoClassDate() {
-          const d = this.newNoClassDate;
-          if (d && !this.config.noClassDates.includes(d)) {
-            this.config.noClassDates.push(d);
-            this.config.noClassDates.sort();
-          }
-          this.newNoClassDate = '';
-        },
-
-        async downloadICS() {
-          this.loading = true; this.error = '';
-          try {
-            const res = await fetch('/api/generate-ics', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ stdId: this.stdId, timetable: this.timetable, config: this.config, subjectLang: this.subjectLang })
-            });
-            if (!res.ok) {
-              const d = await res.json().catch(() => ({}));
-              this.error = d.error || '생성 중 오류가 발생했습니다.';
-              return;
-            }
-            const blob = await res.blob();
-            const url  = URL.createObjectURL(blob);
-            const a    = document.createElement('a');
-            a.href = url; a.download = `timetable_${this.stdId}.ics`;
-            a.click(); URL.revokeObjectURL(url);
-          } catch (e) {
-            this.error = this.t.errorServer;
-          } finally {
-            this.loading = false;
-          }
-        }
-      };
-    }
-  </script>
 </body>
 </html>

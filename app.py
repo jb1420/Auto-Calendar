@@ -109,6 +109,16 @@ def index():
     return send_from_directory('.', 'index.html')
 
 
+@app.route('/style.css')
+def style_css():
+    return send_from_directory('.', 'style.css')
+
+
+@app.route('/app.js')
+def app_js():
+    return send_from_directory('.', 'app.js')
+
+
 @app.route('/api/timetable')
 def get_timetable():
     std_id = request.args.get('stdId', '').strip()
