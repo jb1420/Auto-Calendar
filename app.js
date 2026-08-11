@@ -9,6 +9,9 @@ function app() {
     modal: {
       open: false, isNew: false,
       kyosi: null, col: null,
+      scope: 'one',        // 'one' = 클릭한 칸만, 'all' = 같은 과목 전체
+      origSubject: '',     // 편집 시작 시점의 과목명
+      slots: [],           // 저장 후 이 과목이 차지할 슬롯 키 목록
       data: { subject: '', class: '', teacher: '', room: '' }
     },
     config: {
@@ -55,6 +58,13 @@ function app() {
         modalClassPlaceholder: '예: 1분반',
         modalTeacherPlaceholder: '예: 홍길동',
         modalRoomPlaceholder: '예: 형3404',
+        scopeOne: '이 칸만',
+        scopeAll: '같은 과목 전체',
+        slotPickerHint: '칸을 눌러 수업을 넣을 시간을 선택하세요',
+        modalSaveAll: (n) => `${n}칸에 저장`,
+        modalDeleteAll: (n) => `${n}칸 삭제`,
+        toastApplied: (n) => `✓ ${n}개 칸에 적용했습니다`,
+        toastDeleted: (n) => `✓ ${n}개 칸을 삭제했습니다`,
         toastLoaded: (id) => `✓ ${id} 시간표를 불러왔습니다`,
         errorEmpty: '학번을 입력해주세요.',
         errorServer: '서버에 연결할 수 없습니다.',
@@ -100,6 +110,13 @@ function app() {
         modalClassPlaceholder: 'e.g. Section 1',
         modalTeacherPlaceholder: 'e.g. John Smith',
         modalRoomPlaceholder: 'e.g. Hyeong 3404',
+        scopeOne: 'This slot only',
+        scopeAll: 'All slots of subject',
+        slotPickerHint: 'Tap cells to pick the slots for this class',
+        modalSaveAll: (n) => `Save to ${n} slots`,
+        modalDeleteAll: (n) => `Delete ${n} slots`,
+        toastApplied: (n) => `✓ Applied to ${n} slots`,
+        toastDeleted: (n) => `✓ Deleted ${n} slots`,
         toastLoaded: (id) => `✓ Loaded timetable for ${id}`,
         errorEmpty: 'Please enter your student ID.',
         errorServer: 'Cannot connect to server.',
@@ -181,29 +198,113 @@ function app() {
       }
     },
 
+    // ── 슬롯(요일 × 교시) 유틸 ──
+    // 슬롯 키는 'value1|3' 형태 (요일키 | 교시)
+    slotKey(col, kyosi) { return `${col}|${kyosi}`; },
+
+    slotInfo(col, kyosi) {
+      const row = this.timetable.find(r => String(r.kyosi) === String(kyosi));
+      return row ? row[col] : null;
+    },
+
+    setSlot(key, value) {
+      const [col, kyosi] = key.split('|');
+      const row = this.timetable.find(r => String(r.kyosi) === kyosi);
+      if (row) row[col] = value;
+    },
+
+    // 같은 과목명을 가진 모든 슬롯 키
+    subjectSlots(subject) {
+      const target = (subject || '').trim();
+      if (!target) return [];
+      const keys = [];
+      this.timetable.forEach(row => {
+        this.VALUE_KEYS.forEach(col => {
+          const info = row[col];
+          if (info && (info.subject || '').trim() === target) keys.push(this.slotKey(col, row.kyosi));
+        });
+      });
+      return keys;
+    },
+
+    // ── 편집 모달 ──
+    // 기존 수업 → '이 칸만 / 같은 과목 전체' 선택
+    // 빈 칸 추가 → 칸을 눌러 여러 시간에 한 번에 추가
     openModal(kyosi, col) {
-      const row  = this.timetable.find(r => r.kyosi === kyosi);
-      const info = row ? row[col] : null;
+      const info = this.slotInfo(col, kyosi);
       this.modal = {
         open: true,
         isNew: !info,
         kyosi, col,
+        scope: 'one',
+        origSubject: info ? (info.subject || '') : '',
+        slots: [this.slotKey(col, kyosi)],
         data: info ? { ...info } : { subject: '', class: '', teacher: '', room: '' }
       };
     },
 
+    isSlotSelected(col, kyosi) { return this.modal.slots.includes(this.slotKey(col, kyosi)); },
+
+    slotCellClass(col, kyosi) {
+      const info = this.slotInfo(col, kyosi);
+      const cls  = [];
+      if (this.isSlotSelected(col, kyosi)) cls.push('sel');
+      // 다른 과목이 이미 들어있는 칸 (선택 시 덮어쓰기)
+      if (info && (info.subject || '').trim() !== this.modal.origSubject.trim()) cls.push('taken');
+      if (Number(kyosi) === 5 || Number(kyosi) === 10) cls.push('block-top');
+      return cls.join(' ');
+    },
+
+    toggleSlot(col, kyosi) {
+      const key = this.slotKey(col, kyosi);
+      const i   = this.modal.slots.indexOf(key);
+      if (i >= 0) this.modal.slots.splice(i, 1);
+      else this.modal.slots.push(key);
+    },
+
+    get modalTitle() {
+      const en   = this.subjectLang === 'en';
+      const what = this.modal.isNew ? (en ? 'Add Class' : '수업 추가') : (en ? 'Edit Class' : '수업 편집');
+      return en
+        ? `Period ${this.modal.kyosi} ${this.dayName(this.modal.col)} — ${what}`
+        : `${this.modal.kyosi}교시 ${this.dayName(this.modal.col)} — ${what}`;
+    },
+
+    // 편집 중인 과목이 차지한 칸 수 (2 이상일 때만 범위 토글 표시)
+    get sameSubjectCount() { return this.subjectSlots(this.modal.origSubject).length; },
+
+    // 저장·삭제가 적용될 칸 목록
+    get targetSlots() {
+      if (this.modal.isNew) return this.modal.slots;
+      return this.modal.scope === 'all'
+        ? this.subjectSlots(this.modal.origSubject)
+        : [this.slotKey(this.modal.col, this.modal.kyosi)];
+    },
+
     saveModal() {
-      if (!this.modal.data.subject.trim()) return;
-      const row = this.timetable.find(r => r.kyosi === this.modal.kyosi);
-      if (row) row[this.modal.col] = { ...this.modal.data };
+      const subject = (this.modal.data.subject || '').trim();
+      if (!subject) return;
+      const targets = this.targetSlots;
+      if (!targets.length) return;
+
+      const data = {
+        subject,
+        class:   (this.modal.data.class   || '').trim(),
+        teacher: (this.modal.data.teacher || '').trim(),
+        room:    (this.modal.data.room    || '').trim()
+      };
+      targets.forEach(k => this.setSlot(k, { ...data }));
+
       this.modal.open = false;
+      if (targets.length > 1) this.showToast(this.t.toastApplied(targets.length));
       this.$nextTick(() => this.renderGrid());
     },
 
     deleteModal() {
-      const row = this.timetable.find(r => r.kyosi === this.modal.kyosi);
-      if (row) row[this.modal.col] = null;
+      const targets = this.targetSlots;
+      targets.forEach(k => this.setSlot(k, null));
       this.modal.open = false;
+      if (targets.length > 1) this.showToast(this.t.toastDeleted(targets.length));
       this.$nextTick(() => this.renderGrid());
     },
 

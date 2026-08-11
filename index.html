@@ -192,9 +192,15 @@
   <!-- 편집 모달 -->
   <div class="modal-bg" x-show="modal.open" x-cloak @click.self="modal.open = false">
     <div class="modal-box" @click.stop>
-      <h3 x-text="subjectLang === 'en'
-        ? `Period ${modal.kyosi} ${dayName(modal.col)} — ${modal.isNew ? 'Add Class' : 'Edit Class'}`
-        : `${modal.kyosi}교시 ${dayName(modal.col)} — ${modal.isNew ? '수업 추가' : '수업 편집'}`"></h3>
+      <h3 x-text="modalTitle"></h3>
+
+      <!-- 수정 시 적용 범위: 이 칸만 / 같은 과목 전체 -->
+      <div class="scope-toggle" x-show="!modal.isNew && sameSubjectCount > 1">
+        <button :class="modal.scope === 'one' ? 'active' : ''" @click="modal.scope = 'one'" x-text="t.scopeOne"></button>
+        <button :class="modal.scope === 'all' ? 'active' : ''" @click="modal.scope = 'all'"
+          x-text="`${t.scopeAll} (${sameSubjectCount})`"></button>
+      </div>
+
       <div class="modal-field">
         <label x-text="t.modalSubject"></label>
         <input type="text" x-model="modal.data.subject" :placeholder="t.modalSubjectPlaceholder" />
@@ -211,9 +217,34 @@
         <label x-text="t.modalRoom"></label>
         <input type="text" x-model="modal.data.room" :placeholder="t.modalRoomPlaceholder" />
       </div>
+
+      <!-- 새로 추가할 때: 수업을 넣을 칸 선택 -->
+      <div class="slot-picker" x-show="modal.isNew">
+        <p class="sp-hint" x-text="t.slotPickerHint"></p>
+        <div class="sp-scroll">
+          <div class="sp-grid">
+            <div></div>
+            <template x-for="c in VALUE_KEYS" :key="'sph' + c">
+              <div class="sp-head" x-text="dayName(c)"></div>
+            </template>
+            <template x-for="row in timetable" :key="'spr' + row.kyosi">
+              <div class="sp-row">
+                <div class="sp-kyosi" :class="(Number(row.kyosi) === 5 || Number(row.kyosi) === 10) ? 'block-top' : ''"
+                  x-text="row.kyosi"></div>
+                <template x-for="c in VALUE_KEYS" :key="'sp' + row.kyosi + c">
+                  <div class="sp-cell" :class="slotCellClass(c, row.kyosi)" @click="toggleSlot(c, row.kyosi)"></div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
       <div class="modal-actions">
-        <button class="btn btn-primary" @click="saveModal()" x-text="t.modalSave"></button>
-        <button class="btn btn-danger" x-show="!modal.isNew" @click="deleteModal()" x-text="t.modalDelete"></button>
+        <button class="btn btn-primary" @click="saveModal()"
+          x-text="targetSlots.length > 1 ? t.modalSaveAll(targetSlots.length) : t.modalSave"></button>
+        <button class="btn btn-danger" x-show="!modal.isNew" @click="deleteModal()"
+          x-text="targetSlots.length > 1 ? t.modalDeleteAll(targetSlots.length) : t.modalDelete"></button>
         <button class="btn btn-secondary" @click="modal.open = false" x-text="t.modalCancel"></button>
       </div>
     </div>

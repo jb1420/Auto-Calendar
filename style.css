@@ -150,12 +150,51 @@ input[type="text"]:focus, input[type="date"]:focus { border-color: #4f7ef8; }
 .modal-box {
   background: #fff; border-radius: 16px; padding: 28px 28px 24px;
   width: 340px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,.18);
+  max-height: 90vh; overflow-y: auto;
 }
-.modal-box h3 { font-size: 17px; font-weight: 700; margin-bottom: 18px; }
+.modal-box h3 { font-size: 17px; font-weight: 700; margin-bottom: 18px; word-break: keep-all; }
 .modal-field { margin-bottom: 12px; }
 .modal-field label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
 .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
 .modal-actions .btn { flex: 1; padding: 10px; font-size: 14px; }
+
+/* 적용 범위 토글 (이 칸만 / 같은 과목 전체) */
+.scope-toggle {
+  display: flex; border: 1.5px solid #ddd; border-radius: 10px;
+  overflow: hidden; margin-bottom: 16px;
+}
+.scope-toggle button {
+  flex: 1; padding: 9px 4px; background: #fff; border: none;
+  font-size: 13px; font-weight: 600; color: #aaa; cursor: pointer;
+  transition: background .2s, color .2s;
+}
+.scope-toggle button.active { background: #4f7ef8; color: #fff; }
+.scope-toggle button:not(:last-child) { border-right: 1.5px solid #ddd; }
+
+/* 시간 선택 미니 그리드 (새 수업 추가 시) */
+.slot-picker { border-top: 1px solid #eee; margin-top: 4px; padding-top: 12px; }
+.sp-hint { font-size: 12px; color: #4f7ef8; font-weight: 600; margin-bottom: 8px; }
+.sp-scroll { max-height: 210px; overflow-y: auto; padding: 1px; }
+.sp-grid { display: grid; grid-template-columns: 20px repeat(5, 1fr); gap: 3px; }
+.sp-row { display: contents; }
+.sp-head { text-align: center; font-size: 10px; font-weight: 700; color: #888; padding-bottom: 2px; }
+.sp-kyosi { display: flex; align-items: center; justify-content: center; font-size: 10px; color: #bbb; }
+.sp-cell {
+  height: 22px; border-radius: 5px; cursor: pointer;
+  background: #fafafa; border: 1.5px dashed #e0e0e0;
+  transition: background .12s, border-color .12s;
+}
+.sp-cell:hover { background: #f0f0f0; border-color: #bbb; }
+/* 다른 과목이 이미 들어있는 칸 */
+.sp-cell.taken { background: #f0f0f2; border: 1.5px solid #dcdce2; }
+.sp-cell.taken:hover { background: #e6e6ea; }
+/* 이 과목이 차지할 칸 */
+.sp-cell.sel { background: #4f7ef8; border: 1.5px solid #4f7ef8; }
+.sp-cell.sel:hover { background: #3a68e0; }
+/* 덮어쓰게 되는 칸 */
+.sp-cell.sel.taken { background: #f0a020; border-color: #f0a020; }
+.sp-cell.sel.taken:hover { background: #d98d15; }
+.sp-cell.block-top, .sp-kyosi.block-top { margin-top: 8px; }
 
 /* ── Step 3 ── */
 details { border: 1.5px solid #eee; border-radius: 10px; margin-bottom: 16px; }
@@ -306,6 +345,12 @@ details[open] summary::after { content: '▴'; }
   .modal-box h3 { font-size: 16px; margin-bottom: 14px; }
   .modal-actions { flex-wrap: wrap; }
   .modal-actions .btn { flex: 1 1 calc(50% - 4px); padding: 11px; }
+
+  /* 모달: 시트가 화면을 넘지 않도록 */
+  .modal-box { max-height: 88svh; }
+  .scope-toggle button { font-size: 12px; padding: 8px 2px; }
+  .sp-scroll { max-height: 28svh; }
+  .sp-cell { height: 26px; }
 
   /* Step 3 */
   details summary { padding: 11px 14px; font-size: 13px; }
